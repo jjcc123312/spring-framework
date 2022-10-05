@@ -62,6 +62,7 @@ public class DefaultResourceLoader implements ResourceLoader {
 	 * @see java.lang.Thread#getContextClassLoader()
 	 */
 	public DefaultResourceLoader() {
+		// 默认使用线程上下文加载器
 		this.classLoader = ClassUtils.getDefaultClassLoader();
 	}
 
@@ -80,6 +81,7 @@ public class DefaultResourceLoader implements ResourceLoader {
 	 * for using the thread context class loader at the time of actual resource access.
 	 * <p>The default is that ClassLoader access will happen using the thread context
 	 * class loader at the time of this ResourceLoader's initialization.
+	 * <p>指定类加载器</p>
 	 */
 	public void setClassLoader(@Nullable ClassLoader classLoader) {
 		this.classLoader = classLoader;
@@ -89,6 +91,7 @@ public class DefaultResourceLoader implements ResourceLoader {
 	 * Return the ClassLoader to load class path resources with.
 	 * <p>Will get passed to ClassPathResource's constructor for all
 	 * ClassPathResource objects created by this resource loader.
+	 * <p>获取前面指定的类加载器</p>
 	 * @see ClassPathResource
 	 */
 	@Override
@@ -102,6 +105,7 @@ public class DefaultResourceLoader implements ResourceLoader {
 	 * additional protocols to be handled.
 	 * <p>Any such resolver will be invoked ahead of this loader's standard
 	 * resolution rules. It may therefore also override any default rules.
+	 * <p>添加解析规则</p>
 	 * @since 4.3
 	 * @see #getProtocolResolvers()
 	 */
@@ -139,11 +143,23 @@ public class DefaultResourceLoader implements ResourceLoader {
 		this.resourceCaches.clear();
 	}
 
-
+	/**
+	 * DefaultResourceLoader类核心方法；
+	 * <p>location:
+	 *    <ul>
+	 * 	  <li>Must support fully qualified URLs, e.g. "file:C:/test.dat".
+	 * 	 <li>Must support classpath pseudo-URLs, e.g. "classpath:test.dat".
+	 * 	 <li>Should support relative file paths, e.g. "WEB-INF/test.dat".
+	 * 	 (This will be implementation-specific, typically provided by an
+	 * 	 ApplicationContext implementation.)
+	 * 	 </ul>
+	 * </p>
+	 */
 	@Override
 	public Resource getResource(String location) {
 		Assert.notNull(location, "Location must not be null");
 
+		// 通过ProtocolResolver解析规则加载资源
 		for (ProtocolResolver protocolResolver : getProtocolResolvers()) {
 			Resource resource = protocolResolver.resolve(location, this);
 			if (resource != null) {
@@ -152,19 +168,24 @@ public class DefaultResourceLoader implements ResourceLoader {
 		}
 
 		if (location.startsWith("/")) {
+			// 其次，以 / 开头，返回 ClassPathContextResource 类型的资源
+			// ClassPathContextResource是一种特别的ClassPathResource资源
 			return getResourceByPath(location);
 		}
 		else if (location.startsWith(CLASSPATH_URL_PREFIX)) {
+			// 以 classpath: 开头，返回 ClassPathResource 类型的资源
 			return new ClassPathResource(location.substring(CLASSPATH_URL_PREFIX.length()), getClassLoader());
 		}
 		else {
 			try {
 				// Try to parse the location as a URL...
+				// 根据是否为文件 URL ，是则返回 FileUrlResource 类型的资源，否则返回 UrlResource 类型的资源
 				URL url = new URL(location);
 				return (ResourceUtils.isFileURL(url) ? new FileUrlResource(url) : new UrlResource(url));
 			}
 			catch (MalformedURLException ex) {
 				// No URL -> resolve as resource path.
+				// 最后，返回 ClassPathContextResource 类型的资源
 				return getResourceByPath(location);
 			}
 		}

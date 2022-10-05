@@ -77,9 +77,10 @@ public class PathMatchingResourcePatternResolverTests {
 		assertProtocolAndFilenames(resources, "jar", "Publisher.class");
 	}
 
-	@Ignore  // passes under Eclipse, fails under Ant
+//	@Ignore  // passes under Eclipse, fails under Ant
 	@Test
 	public void classpathStarWithPatternOnFileSystem() throws IOException {
+		System.out.println("1112312");
 		Resource[] resources = resolver.getResources("classpath*:org/springframework/core/io/sup*/*.class");
 		// Have to exclude Clover-generated class files here,
 		// as we might be running as part of a Clover test run.

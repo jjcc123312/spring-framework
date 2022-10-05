@@ -101,4 +101,33 @@ public class ResourceEditorTests {
 		}
 	}
 
+	/**
+	 * DefaultResourceLoader test method
+	 */
+	@Test
+	public void defaultResourceLoader() {
+		DefaultResourceLoader defaultResourceLoader = new DefaultResourceLoader();
+		Resource resource1 = defaultResourceLoader.getResource("http://www.baidu.com");
+		System.out.println("resource1: " + resource1.getClass().getName());
+
+		Resource resource2 = defaultResourceLoader.getResource("/Users/chenming673/Documents/spark.txt");
+		System.out.println("resource2: " + (resource2.getClass().getName()));
+
+		Resource resource3 = defaultResourceLoader.getResource("D:/Users/chenming673/Documents/spark.txt");
+		System.out.println("resource3: " + (resource3.getClass().getName()));
+
+		// FileSystemResource类型的资源需要使用FileSystemResourceLoader加载器
+		FileSystemResourceLoader fileSystemResourceLoader = new FileSystemResourceLoader();
+		Resource resource4 = fileSystemResourceLoader.getResource("D:/Users/chenming673/Documents/spark.txt");
+		System.out.println("resource4: " + resource4.getClass().getName());
+	}
+
+	@Test
+	public void fileSystemResourceLoader() {
+		// FileSystemResource类型的资源需要使用FileSystemResourceLoader加载器
+		FileSystemResourceLoader fileSystemResourceLoader = new FileSystemResourceLoader();
+		Resource resource4 = fileSystemResourceLoader.getResource("D:/Users/chenming673/Documents/spark.txt");
+		System.out.println("resource4: " + resource4.getClass().getName());
+	}
+
 }

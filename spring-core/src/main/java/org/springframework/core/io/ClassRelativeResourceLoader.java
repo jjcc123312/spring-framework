@@ -35,6 +35,7 @@ public class ClassRelativeResourceLoader extends DefaultResourceLoader {
 
 	/**
 	 * Create a new ClassRelativeResourceLoader for the given class.
+	 * <p>这里clazz参数是用于确定需要加载的资源的包位置</p>
 	 * @param clazz the class to load resources through
 	 */
 	public ClassRelativeResourceLoader(Class<?> clazz) {
