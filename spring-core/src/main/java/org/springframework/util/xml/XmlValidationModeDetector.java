@@ -94,15 +94,19 @@ public class XmlValidationModeDetector {
 		try {
 			boolean isDtdValidated = false;
 			String content;
+			// 按行读取xml文档
 			while ((content = reader.readLine()) != null) {
+				// 清除xml中的注释块
 				content = consumeCommentTokens(content);
 				if (this.inComment || !StringUtils.hasText(content)) {
 					continue;
 				}
 				if (hasDoctype(content)) {
+					// xml文档中是否包含 “DOCTYPE”，包含则说明xml文档是DTD
 					isDtdValidated = true;
 					break;
 				}
+				// hasOpeningTag 方法会校验，如果这一行有 < ，并且 < 后面跟着的是字母，则返回 true，说明是XSD
 				if (hasOpeningTag(content)) {
 					// End of meaningful data...
 					break;

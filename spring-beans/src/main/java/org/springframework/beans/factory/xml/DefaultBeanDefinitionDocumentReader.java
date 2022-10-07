@@ -125,16 +125,27 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 		// the new (child) delegate with a reference to the parent for fallback purposes,
 		// then ultimately reset this.delegate back to its original (parent) reference.
 		// this behavior emulates a stack of delegates without actually necessitating one.
+		// 记录老的 BeanDefinitionParserDelegate 对象
 		BeanDefinitionParserDelegate parent = this.delegate;
+		// <1> 创建 BeanDefinitionParserDelegate 对象，并进行设置到 delegate
 		this.delegate = createDelegate(getReaderContext(), root, parent);
-
+		// <2> 检查 <beans /> 根标签的命名空间是否为空，或者是 http://www.springframework.org/schema/beans
+		// 命名空间用于xml文件中的文档内容的标识，常见的有html类型、maven类型、spring bean类型
 		if (this.delegate.isDefaultNamespace(root)) {
+			// <2.1> 处理 profile 属性。可参见《Spring3自定义环境配置 <beans profile="">》http://nassir.iteye.com/blog/1535799
+			// spring中用于区分工作环境；典型的有localhost、dev、pre、pro
 			String profileSpec = root.getAttribute(PROFILE_ATTRIBUTE);
 			if (StringUtils.hasText(profileSpec)) {
+				// <2.2> 使用分隔符切分，可能有多个 profile 。
 				String[] specifiedProfiles = StringUtils.tokenizeToStringArray(
 						profileSpec, BeanDefinitionParserDelegate.MULTI_VALUE_ATTRIBUTE_DELIMITERS);
 				// We cannot use Profiles.of(...) since profile expressions are not supported
 				// in XML config. See SPR-12458 for details.
+				// <2.3> 如果所有 profile 都无效，则不进行注册
+				/*
+				* 大致意思是先获取当前程序运行的环境，再与xml文档中所有定义的beanDefinition的参数profile做对比，
+				* 如果xml文档中所有的beanDefinition的profile值都与当前运行环境不一致，则直接终止方法。
+				* */
 				if (!getReaderContext().getEnvironment().acceptsProfiles(specifiedProfiles)) {
 					if (logger.isDebugEnabled()) {
 						logger.debug("Skipped XML bean definition file due to specified profiles [" + profileSpec +
@@ -145,10 +156,13 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 			}
 		}
 
+		// <3> 解析前处理
 		preProcessXml(root);
+		// <4> 解析
 		parseBeanDefinitions(root, this.delegate);
+		// <5> 解析后处理
 		postProcessXml(root);
-
+		// 设置 delegate 回老的 BeanDefinitionParserDelegate 对象
 		this.delegate = parent;
 	}
 
@@ -166,38 +180,47 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 	 * @param root the DOM root element of the document
 	 */
 	protected void parseBeanDefinitions(Element root, BeanDefinitionParserDelegate delegate) {
+		// <1> 如果根节点使用默认命名空间，执行默认解析
 		if (delegate.isDefaultNamespace(root)) {
+			// 遍历子节点
 			NodeList nl = root.getChildNodes();
 			for (int i = 0; i < nl.getLength(); i++) {
 				Node node = nl.item(i);
 				if (node instanceof Element) {
 					Element ele = (Element) node;
 					if (delegate.isDefaultNamespace(ele)) {
+						// <1> 如果该节点使用默认命名空间，执行默认解析
 						parseDefaultElement(ele, delegate);
 					}
 					else {
+						// 如果该节点非默认命名空间，执行自定义解析
 						delegate.parseCustomElement(ele);
 					}
 				}
 			}
 		}
 		else {
+			// <2> 如果根节点非默认命名空间，执行自定义解析
 			delegate.parseCustomElement(root);
 		}
 	}
 
 	private void parseDefaultElement(Element ele, BeanDefinitionParserDelegate delegate) {
 		if (delegate.nodeNameEquals(ele, IMPORT_ELEMENT)) {
+			// import标签解析
 			importBeanDefinitionResource(ele);
 		}
 		else if (delegate.nodeNameEquals(ele, ALIAS_ELEMENT)) {
+			// alias标签解析
 			processAliasRegistration(ele);
 		}
 		else if (delegate.nodeNameEquals(ele, BEAN_ELEMENT)) {
+			// bean标签解析
 			processBeanDefinition(ele, delegate);
 		}
 		else if (delegate.nodeNameEquals(ele, NESTED_BEANS_ELEMENT)) {
 			// recurse
+			// beans标签解析
 			doRegisterBeanDefinitions(ele);
 		}
 	}

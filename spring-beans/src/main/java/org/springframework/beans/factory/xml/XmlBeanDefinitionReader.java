@@ -85,6 +85,7 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 
 	/**
 	 * Indicates that the validation mode should be detected automatically.
+	 * <p>默认的xml文档验证模式<p/>
 	 */
 	public static final int VALIDATION_AUTO = XmlValidationModeDetector.VALIDATION_AUTO;
 
@@ -266,9 +267,11 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 			// Determine default EntityResolver to use.
 			ResourceLoader resourceLoader = getResourceLoader();
 			if (resourceLoader != null) {
+				// ResourceEntityResolver：继承至DelegatingEntityResolver，通过 ResourceLoader 来解析实体的引用
 				this.entityResolver = new ResourceEntityResolver(resourceLoader);
 			}
 			else {
+				// DelegatingEntityResolver：分别代理 dtd 的 BeansDtdResolver 和 xml schemas 的 PluggableSchemaResolver
 				this.entityResolver = new DelegatingEntityResolver(getBeanClassLoader());
 			}
 		}
@@ -446,6 +449,18 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 	 * @see DocumentLoader#loadDocument
 	 */
 	protected Document doLoadDocument(InputSource inputSource, Resource resource) throws Exception {
+		/*
+		* #getValidationModeForResource()：获取资源对应的验证模式：
+		* 	0：禁用验证
+		* 	1：自动
+		* 	2：DTD
+		* 	3：XSD
+		* #getEntityResolver()：返回指定的文档解析器；
+		* 	文档解析器作用：获取【验证文件】，从而验证用户写的 XML 是否通过验证
+		* 	1.如果 BeanDefinitionRegistry 是 ResourceLoader 的子类，使用 BeanDefinitionRegistry作为EntityResolver的构造参数
+		*   2.不是，则使用默认的资源加载类：DefaultResourceLoader作为EntityResolver的构造参数
+		* */
+		// xml文档加载
 		return this.documentLoader.loadDocument(inputSource, getEntityResolver(), this.errorHandler,
 				getValidationModeForResource(resource), isNamespaceAware());
 	}
@@ -456,13 +471,18 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 	 * mode gets {@link #detectValidationMode detected} from the given resource.
 	 * <p>Override this method if you would like full control over the validation
 	 * mode, even when something other than {@link #VALIDATION_AUTO} was set.
+	 * <p>确定指定资源的验证模式。如果没有配置明确的验证模式，那么验证模式将从给定的资源中检测。
+	 * 如果你想完全控制验证模式，甚至在设置了VALIDATION_AUTO以外的东西时，覆盖此方法。<p/>
 	 * @see #detectValidationMode
 	 */
 	protected int getValidationModeForResource(Resource resource) {
+		// <1> 获取指定的验证模式，如果没有指定，则模式还是 VALIDATION_AUTO
 		int validationModeToUse = getValidationMode();
 		if (validationModeToUse != VALIDATION_AUTO) {
+			// 首先，如果手动指定，则直接返回
 			return validationModeToUse;
 		}
+		// 其次，自动获取验证模式
 		int detectedMode = detectValidationMode(resource);
 		if (detectedMode != VALIDATION_AUTO) {
 			return detectedMode;
@@ -470,6 +490,7 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 		// Hmm, we didn't get a clear indication... Let's assume XSD,
 		// since apparently no DTD declaration has been found up until
 		// detection stopped (before finding the document's root tag).
+		// 最后，使用 VALIDATION_XSD 做为默认
 		return VALIDATION_XSD;
 	}
 
@@ -482,6 +503,7 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 	 */
 	protected int detectValidationMode(Resource resource) {
 		if (resource.isOpen()) {
+			// 如果资源已经被打开，抛出异常
 			throw new BeanDefinitionStoreException(
 					"Passed-in Resource [" + resource + "] contains an open stream: " +
 					"cannot determine validation mode automatically. Either pass in a Resource " +
@@ -501,6 +523,7 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 		}
 
 		try {
+			// 通过xml文件内容获取验证模式
 			return this.validationModeDetector.detectValidationMode(inputStream);
 		}
 		catch (IOException ex) {
@@ -523,9 +546,14 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 	 * @see BeanDefinitionDocumentReader#registerBeanDefinitions
 	 */
 	public int registerBeanDefinitions(Document doc, Resource resource) throws BeanDefinitionStoreException {
+		// 创建一个bean定义文档读取类
 		BeanDefinitionDocumentReader documentReader = createBeanDefinitionDocumentReader();
+		// 获取已经注册的BeanDefinition数量
 		int countBefore = getRegistry().getBeanDefinitionCount();
+		// createReaderContext(resource)：创建一个xml格式文档读取上下文；功能主要包含各种类型注册的触发事件执行方法
+		// registerBeanDefinitions：读取xml元素，并注册成 BeanDefinition
 		documentReader.registerBeanDefinitions(doc, createReaderContext(resource));
+		// 获取本次注册的BeanDefinition数量
 		return getRegistry().getBeanDefinitionCount() - countBefore;
 	}
 
