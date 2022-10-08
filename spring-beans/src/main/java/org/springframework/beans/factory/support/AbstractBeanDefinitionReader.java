@@ -222,9 +222,12 @@ public abstract class AbstractBeanDefinitionReader implements BeanDefinitionRead
 		if (resourceLoader instanceof ResourcePatternResolver) {
 			// Resource pattern matching available.
 			try {
+				// // 获得 Resource 数组，因为 Pattern 模式匹配下，可能有多个 Resource 。例如说，Ant 风格的 location
 				Resource[] resources = ((ResourcePatternResolver) resourceLoader).getResources(location);
+				// 加载 BeanDefinition 们
 				int count = loadBeanDefinitions(resources);
 				if (actualResources != null) {
+					// 添加到 actualResources 中
 					Collections.addAll(actualResources, resources);
 				}
 				if (logger.isTraceEnabled()) {
@@ -239,9 +242,12 @@ public abstract class AbstractBeanDefinitionReader implements BeanDefinitionRead
 		}
 		else {
 			// Can only load single resources by absolute URL.
+			// 获取单个的 resource 对象
 			Resource resource = resourceLoader.getResource(location);
+			// 加载 BeanDefinition
 			int count = loadBeanDefinitions(resource);
 			if (actualResources != null) {
+				// 添加到 actualResources 中
 				actualResources.add(resource);
 			}
 			if (logger.isTraceEnabled()) {
