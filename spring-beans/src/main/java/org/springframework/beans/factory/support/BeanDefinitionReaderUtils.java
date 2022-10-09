@@ -56,14 +56,18 @@ public abstract class BeanDefinitionReaderUtils {
 	 */
 	public static AbstractBeanDefinition createBeanDefinition(
 			@Nullable String parentName, @Nullable String className, @Nullable ClassLoader classLoader) throws ClassNotFoundException {
-
+		// 创建 GenericBeanDefinition 对象
 		GenericBeanDefinition bd = new GenericBeanDefinition();
+		// 设置 parentName
 		bd.setParentName(parentName);
 		if (className != null) {
+			// 设置 className；className：类的全限定类名（如org.springframework.tests.sample.beans.TestBean）
 			if (classLoader != null) {
+				// bean对应的实例类
 				bd.setBeanClass(ClassUtils.forName(className, classLoader));
 			}
 			else {
+				// 类的全限定类名
 				bd.setBeanClassName(className);
 			}
 		}
