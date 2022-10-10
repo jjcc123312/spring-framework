@@ -166,13 +166,20 @@ public abstract class BeanDefinitionReaderUtils {
 			throws BeanDefinitionStoreException {
 
 		// Register bean definition under primary name.
+		// bean name, bean标签定义了id则选用id值，没有则使用name中的第一个，id、name都没有则自动生成
 		String beanName = definitionHolder.getBeanName();
+		// 注册 beanName
 		registry.registerBeanDefinition(beanName, definitionHolder.getBeanDefinition());
 
 		// Register aliases for bean name, if any.
+		// 注册 alias
+		// beanDefinition的别名也注册上；但name、别名指向的是同一个bean
 		String[] aliases = definitionHolder.getAliases();
 		if (aliases != null) {
 			for (String alias : aliases) {
+				/*
+				* 别名为key，beanName为value；后面通过别名找到bean时，先通过别名找到beanName，再通过beanName找到beanDefinition
+				* */
 				registry.registerAlias(beanName, alias);
 			}
 		}

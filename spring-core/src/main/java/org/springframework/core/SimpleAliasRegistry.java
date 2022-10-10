@@ -51,20 +51,26 @@ public class SimpleAliasRegistry implements AliasRegistry {
 	public void registerAlias(String name, String alias) {
 		Assert.hasText(name, "'name' must not be empty");
 		Assert.hasText(alias, "'alias' must not be empty");
+		// 同步代码块，别名共同的容器作为锁资源
 		synchronized (this.aliasMap) {
 			if (alias.equals(name)) {
+				// bean name == bean alias 则去掉alias
 				this.aliasMap.remove(alias);
 				if (logger.isDebugEnabled()) {
 					logger.debug("Alias definition '" + alias + "' ignored since it points to same name");
 				}
 			}
 			else {
+				// 获取 alias 已注册的 beanName
 				String registeredName = this.aliasMap.get(alias);
+				// alias已经注册过了
 				if (registeredName != null) {
+					// alias对应的bean name如果等于新注册beanDefinition的name，则说明alias与对应的beanName是重复注册，直接终止方法
 					if (registeredName.equals(name)) {
 						// An existing alias - no need to re-register
 						return;
 					}
+					// 不允许覆盖，则抛出 IllegalStateException 异常
 					if (!allowAliasOverriding()) {
 						throw new IllegalStateException("Cannot define alias '" + alias + "' for name '" +
 								name + "': It is already registered for name '" + registeredName + "'.");
@@ -74,6 +80,7 @@ public class SimpleAliasRegistry implements AliasRegistry {
 								registeredName + "' with new target name '" + name + "'");
 					}
 				}
+				//
 				checkForAliasCircle(name, alias);
 				this.aliasMap.put(alias, name);
 				if (logger.isTraceEnabled()) {
@@ -100,7 +107,18 @@ public class SimpleAliasRegistry implements AliasRegistry {
 	public boolean hasAlias(String name, String alias) {
 		for (Map.Entry<String, String> entry : this.aliasMap.entrySet()) {
 			String registeredName = entry.getValue();
+			/*
+			* aliasMap alias key:name (1,3)、(A,1)
+			* new key:name = (3,A)
+			* registeredName = 3,1
+			* */
 			if (registeredName.equals(name)) {
+				/*
+				*
+				* alias = A
+				* registeredAlias.equals(alias)：相同的value，key是否与alias相同
+				* 重点是#hasAlias(registeredAlias, alias)方法，虽然这里是递归调用，但方法参数却是 old beanAlias, new beanAlias，
+				* */
 				String registeredAlias = entry.getKey();
 				if (registeredAlias.equals(alias) || hasAlias(registeredAlias, alias)) {
 					return true;
@@ -108,6 +126,18 @@ public class SimpleAliasRegistry implements AliasRegistry {
 			}
 		}
 		return false;
+	}
+
+	public static void main(String[] args){
+		SimpleAliasRegistry simpleAliasRegistry = new SimpleAliasRegistry();
+		// alias:name
+		simpleAliasRegistry.aliasMap.put("z","zz1");
+		simpleAliasRegistry.aliasMap.put("zz","zzz");
+		simpleAliasRegistry.aliasMap.put("zzz","z");
+		// spring中实际调用时，args1：alias value，args2：name value
+		// 实际上 "z" 是name，"zz1" 是alias
+		// 实际放入集合时 zz1:z
+		System.out.println(simpleAliasRegistry.hasAlias("zz1", "z"));
 	}
 
 	@Override
@@ -199,6 +229,10 @@ public class SimpleAliasRegistry implements AliasRegistry {
 	 * @see #hasAlias
 	 */
 	protected void checkForAliasCircle(String name, String alias) {
+		/*
+		* >>1 ("3", "A")
+		* >>2 ("bbb", "3")
+		* */
 		if (hasAlias(alias, name)) {
 			throw new IllegalStateException("Cannot register alias '" + alias +
 					"' for name '" + name + "': Circular reference - '" +
