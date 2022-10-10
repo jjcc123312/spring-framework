@@ -91,7 +91,7 @@ public abstract class AbstractBeanDefinitionReader implements BeanDefinitionRead
 			this.resourceLoader = (ResourceLoader) this.registry;
 		}
 		else {
-			// 不是，则使用默认的资源加载类：DefaultResourceLoader
+			// 不是，则使用PathMatchingResourcePatternResolver，这是一个支持Ant 风格的路径匹配模式（类似于 "**/*.xml"）的resourceLoader
 			this.resourceLoader = new PathMatchingResourcePatternResolver();
 		}
 
