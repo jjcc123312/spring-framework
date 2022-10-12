@@ -2,8 +2,6 @@ package org.springframework.beans.factory.xml;
 
 import org.junit.Test;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
-import org.springframework.beans.factory.xml.XmlBeanDefinitionReader;
-import org.springframework.beans.factory.xml.XmlBeanDefinitionReaderTests;
 import org.springframework.core.io.ClassPathResource;
 
 /**
@@ -21,7 +19,8 @@ public class LoadBeanDefinitionTest {
 		ClassPathResource classPathResource = new ClassPathResource("loadBeanDefinitionTest.xml", this.getClass());
 		XmlBeanDefinitionReader xmlBeanDefinitionReader = new XmlBeanDefinitionReader(defaultListableBeanFactory);
 		xmlBeanDefinitionReader.loadBeanDefinitions(classPathResource);
-		Object bean = defaultListableBeanFactory.getBean("testBean");
+		Object bean = defaultListableBeanFactory.getBean("studentBean");
+//		Object bean = defaultListableBeanFactory.getBean("&testFactory122");
 		System.out.println("bean value: " + bean);
 	}
 }
