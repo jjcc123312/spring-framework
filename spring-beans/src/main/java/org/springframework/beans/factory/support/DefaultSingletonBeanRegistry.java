@@ -114,10 +114,17 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	/** Map between containing bean names: bean name to Set of bean names that the bean contains. */
 	private final Map<String, Set<String>> containedBeanMap = new ConcurrentHashMap<>(16);
 
-	/** Map between dependent bean names: bean name to Set of dependent bean names. */
+	/**
+	 * Map between dependent bean names: bean name to Set of dependent bean names.
+	 * <p>保存的被注入bean与其所依赖的bean之间的关系，beanName - > 依赖 beanName 的集合；一对多关系</p>
+	 * */
 	private final Map<String, Set<String>> dependentBeanMap = new ConcurrentHashMap<>(64);
 
-	/** Map between depending bean names: bean name to Set of bean names for the bean's dependencies. */
+	/**
+	 * Map between depending bean names: bean name to Set of bean names for the bean's dependencies.
+	 * <p> 保存的是依赖 beanName 之间的映射关系：依赖 beanName - > beanName 的集合；多对一关系<p/>
+	 * <p>key是一个beanName，value集合是指beanName被哪些bean注入了</p>
+	 * */
 	private final Map<String, Set<String>> dependenciesForBeanMap = new ConcurrentHashMap<>(64);
 
 
@@ -435,17 +442,22 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	 * @param dependentBeanName the name of the dependent bean
 	 */
 	public void registerDependentBean(String beanName, String dependentBeanName) {
+		// 获取原始 beanName，beanName可能是别名，需要通过alias集合甄别一下
 		String canonicalName = canonicalName(beanName);
-
+		// 添加 <canonicalName, <dependentBeanName>> 到 dependentBeanMap 中
 		synchronized (this.dependentBeanMap) {
+			// computeIfAbsent：初始 beanName 对应的依赖bean集合是null，进行初始化
 			Set<String> dependentBeans =
 					this.dependentBeanMap.computeIfAbsent(canonicalName, k -> new LinkedHashSet<>(8));
 			if (!dependentBeans.add(dependentBeanName)) {
+				// 初始 beanName 对应的依赖bean集合已经存在 dependentBeanName,说明此依赖bean已经实现了
 				return;
 			}
 		}
 
+		// 添加 <dependentBeanName, <canonicalName>> 到 dependenciesForBeanMap 中
 		synchronized (this.dependenciesForBeanMap) {
+			// key是一个dependentBeanName，value集合是指dependentBeanName被哪些bean注入(使用)了
 			Set<String> dependenciesForBean =
 					this.dependenciesForBeanMap.computeIfAbsent(dependentBeanName, k -> new LinkedHashSet<>(8));
 			dependenciesForBean.add(canonicalName);
@@ -455,33 +467,57 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	/**
 	 * Determine whether the specified dependent bean has been registered as
 	 * dependent on the given bean or on any of its transitive dependencies.
-	 * @param beanName the name of the bean to check
-	 * @param dependentBeanName the name of the dependent bean
+	 * @param beanName the name of the bean to check(要检查的bean的名称)
+	 * @param dependentBeanName the name of the dependent bean(依赖的bean的名称)
 	 * @since 4.0
 	 */
 	protected boolean isDependent(String beanName, String dependentBeanName) {
+		// dependentBeanMap为锁资源
 		synchronized (this.dependentBeanMap) {
 			return isDependent(beanName, dependentBeanName, null);
 		}
 	}
 
 	private boolean isDependent(String beanName, String dependentBeanName, @Nullable Set<String> alreadySeen) {
+		// alreadySeen：已经检测过了的beanName集合
+		// 集合包含 已经检测的依赖 beanName
 		if (alreadySeen != null && alreadySeen.contains(beanName)) {
 			return false;
 		}
+		// 获取原始 beanName，beanName可能是别名，需要通过alias集合甄别一下
 		String canonicalName = canonicalName(beanName);
+		// 获取当前 beanName 的依赖集合
 		Set<String> dependentBeans = this.dependentBeanMap.get(canonicalName);
 		if (dependentBeans == null) {
 			return false;
 		}
+		// 如果存在，说明存在已经注册的依赖
+		/*
+		* 当前 beanName 的依赖集合中 包含 被依赖的beanName
+		* */
 		if (dependentBeans.contains(dependentBeanName)) {
 			return true;
 		}
+		// 递归检测依赖
 		for (String transitiveDependency : dependentBeans) {
 			if (alreadySeen == null) {
 				alreadySeen = new HashSet<>();
 			}
+			// 添加到 alreadySeen 中
 			alreadySeen.add(beanName);
+			// 递归
+			/*
+			* 这里递归是把一开始的检测beanName对应的依赖集合的element一个个的进行依赖检测,
+			* 但凡有一个被依赖的dependentBeanName存在于beanName对应依赖集合中，就返回true
+			* 核心代码：dependentBeans.contains(dependentBeanName)
+			* */
+			/*
+			 * 假设bean A中存在依赖bean集合 [B,C,D];
+			 * 	1. 先检测依赖bean B，如果B已经在集合DefaultSingletonBeanRegistry.dependentBeanMap,表示已经检测了
+			 * 	2. 通过递归方式，依次对依赖bean集合迭代
+			 *   3. 以C为例，C为beanName, B为dep，如果bean C对应的依赖集合中存在bean C，返回false，说明存在循环依赖的关系
+			 * 	此时bean的关系图为：A -> B, A -> C, A -> D, 但是 C -> B
+			 * */
 			if (isDependent(transitiveDependency, dependentBeanName, alreadySeen)) {
 				return true;
 			}
