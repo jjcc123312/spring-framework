@@ -220,7 +220,9 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			}
 			// <2> 完成 FactoryBean 的相关处理，并用来获取 FactoryBean 的处理结果
 			/*
-			* 缓存中记录的是最原始的 Bean 状态，我们得到的不一定是我们最终想要的 Bean，所以需要进行重新实例化
+			 * 缓存中记录的是最原始的 Bean 状态，我们得到的不一定是我们最终想要的 Bean，所以需要进行重新实例化
+			 * getSingleton()方法中：如果单例缓冲集合不存在会返回一个null（earlySingletonObjects、singletonObjects从这两个集合中去找对应的bean实例）
+			 * sharedInstance如果是FactoryBean类型，则需要创建bean实例，如果不是则直接return
 			* */
 			bean = getObjectForBeanInstance(sharedInstance, name, beanName, null);
 		}
@@ -293,11 +295,11 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 							throw new BeanCreationException(mbd.getResourceDescription(), beanName,
 									"Circular depends-on relationship between '" + beanName + "' and '" + dep + "'");
 						}
-						// 对依赖的bean
+						// 对依赖的bean放入相关缓冲集合中
 						// 注意这里的请求参数顺序，实际第一个参数是被依赖bean dep，第二个才是初始bean beanName
 						registerDependentBean(dep, beanName);
 						try {
-							// 递归处理依赖 Bean
+							// 递归处理依赖 被依赖的 Bean
 							getBean(dep);
 						}
 						catch (NoSuchBeanDefinitionException ex) {
@@ -312,16 +314,24 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				if (mbd.isSingleton()) { // 单例模式
 					sharedInstance = getSingleton(beanName, () -> {
 						try {
+							// 创建bean实例
 							return createBean(beanName, mbd, args);
 						}
 						catch (BeansException ex) {
 							// Explicitly remove instance from singleton cache: It might have been put there
 							// eagerly by the creation process, to allow for circular reference resolution.
 							// Also remove any beans that received a temporary reference to the bean.
+							// 显式从单例缓存中删除 Bean 实例
+							// 因为单例模式下为了解决循环依赖，可能他已经存在了，所以销毁它。
 							destroySingleton(beanName);
 							throw ex;
 						}
 					});
+					/*
+					 * 缓存中记录的是最原始的 Bean 状态，我们得到的不一定是我们最终想要的 Bean，所以需要进行重新实例化
+					 * getSingleton()方法中：如果单例缓冲集合不存在会返回一个null（earlySingletonObjects、singletonObjects从这两个集合中去找对应的bean实例）
+					 * sharedInstance如果是FactoryBean类型，则需要创建bean实例，如果不是则直接return
+					 * */
 					bean = getObjectForBeanInstance(sharedInstance, name, beanName, mbd);
 				}
 
@@ -329,12 +339,20 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					// It's a prototype -> create a new instance.
 					Object prototypeInstance = null;
 					try {
+						// 加载前置处理
 						beforePrototypeCreation(beanName);
+						// 创建bean实例，与单例不同的是，单例创建完成之后会放入单例缓冲集合之中，原型方式不会放入缓冲
 						prototypeInstance = createBean(beanName, mbd, args);
 					}
 					finally {
+						// 后置处理
 						afterPrototypeCreation(beanName);
 					}
+					/*
+					 * 缓存中记录的是最原始的 Bean 状态，我们得到的不一定是我们最终想要的 Bean，所以需要进行重新实例化
+					 * getSingleton()方法中：如果单例缓冲集合不存在会返回一个null（earlySingletonObjects、singletonObjects从这两个集合中去找对应的bean实例）
+					 * sharedInstance如果是FactoryBean类型，则需要创建bean实例，如果不是则直接return
+					 * */
 					bean = getObjectForBeanInstance(prototypeInstance, name, beanName, mbd);
 				}
 
@@ -1049,17 +1067,22 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 */
 	@SuppressWarnings("unchecked")
 	protected void beforePrototypeCreation(String beanName) {
+		//  ThreadLocal
 		Object curVal = this.prototypesCurrentlyInCreation.get();
 		if (curVal == null) {
+			// 加入当前创建的beanName
 			this.prototypesCurrentlyInCreation.set(beanName);
 		}
 		else if (curVal instanceof String) {
+			// 当前线程第一次调用#beforePrototypeCreation() (当前线程前面已经有原型类型的bean获取过了)，放入的是字符串
+			// 转换为set类型
 			Set<String> beanNameSet = new HashSet<>(2);
 			beanNameSet.add((String) curVal);
 			beanNameSet.add(beanName);
 			this.prototypesCurrentlyInCreation.set(beanNameSet);
 		}
 		else {
+			// 当前线程至少是第三次调用，获取set继续添加beanName
 			Set<String> beanNameSet = (Set<String>) curVal;
 			beanNameSet.add(beanName);
 		}
@@ -1073,6 +1096,10 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 */
 	@SuppressWarnings("unchecked")
 	protected void afterPrototypeCreation(String beanName) {
+		// ThreadLocal
+		/*
+		* 仅仅是清空ThreadLocal存储的数据
+		* */
 		Object curVal = this.prototypesCurrentlyInCreation.get();
 		if (curVal instanceof String) {
 			this.prototypesCurrentlyInCreation.remove();
@@ -1647,6 +1674,8 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	/**
 	 * Get the object for the given bean instance, either the bean
 	 * instance itself or its created object in case of a FactoryBean.
+	 * <p>获取给定bean实例的对象，可以是bean实例本身，也可以是FactoryBean所创建的对象。</p>
+	 * <p>sharedInstance如果是FactoryBean类型，则需要创建bean实例，如果不是则直接return</p>
 	 * @param beanInstance the shared bean instance
 	 * @param name the name that may include factory dereference prefix
 	 * @param beanName the canonical bean name
@@ -1672,7 +1701,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 		// <2>到这里我们就有了一个 Bean 实例，当然该实例可能是会是是一个正常的 bean 又或者是一个 FactoryBean
 		// 如果是 FactoryBean，则创建该 Bean
-		// #isFactoryDereference()：返回给定名称是否为工厂解引用(从工厂解引用前缀开始)。
+		// #isFactoryDereference()：返回给定名称是否为工厂引用(从工厂引用前缀开始)。
 		// Now we have the bean instance, which may be a normal bean or a FactoryBean.
 		// If it's a FactoryBean, we use it to create a bean instance, unless the
 		// caller actually wants a reference to the factory.
