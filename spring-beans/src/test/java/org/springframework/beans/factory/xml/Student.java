@@ -7,7 +7,7 @@ package org.springframework.beans.factory.xml;
  * @description TODO
  * @date 2022/10/11 14:04
  **/
-public class Student {
+public class Student implements Person {
 
 	private String name;
 
@@ -32,5 +32,10 @@ public class Student {
 
 	public void setAge(Integer age) {
 		this.age = age;
+	}
+
+	@Override
+	public String introduce() {
+		return "我叫" + name + "，今年" + age + "岁";
 	}
 }

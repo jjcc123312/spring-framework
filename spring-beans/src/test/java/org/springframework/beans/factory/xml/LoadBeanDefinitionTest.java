@@ -18,9 +18,12 @@ public class LoadBeanDefinitionTest {
 		DefaultListableBeanFactory defaultListableBeanFactory = new DefaultListableBeanFactory();
 		ClassPathResource classPathResource = new ClassPathResource("loadBeanDefinitionTest.xml", this.getClass());
 		XmlBeanDefinitionReader xmlBeanDefinitionReader = new XmlBeanDefinitionReader(defaultListableBeanFactory);
+
 		xmlBeanDefinitionReader.loadBeanDefinitions(classPathResource);
-		Object bean = defaultListableBeanFactory.getBean("studentBean");
+		Object bean1 = defaultListableBeanFactory.getBean("studentBean");
 //		Object bean = defaultListableBeanFactory.getBean("&testFactory122");
-		System.out.println("bean value: " + bean);
+		Student studentBean1 = (Student) bean1;
+		System.out.println(studentBean1);
+
 	}
 }
