@@ -65,26 +65,35 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 
 	/**
 	 * Cache of singleton objects: bean name to bean instance.
-	 * 存放的是单例 bean 的映射。
-	 * */
+	 *
+	 * 一级缓存，存放的是单例 bean 的映射。
+	 *
+	 * 注意，这里的 bean 是已经创建完成的。
+	 *
+	 * 对应关系为 bean name --> bean instance
+	 */
 	private final Map<String, Object> singletonObjects = new ConcurrentHashMap<>(256);
 
 	/**
 	 * Cache of singleton factories: bean name to ObjectFactory.
-	 * 存放的是 ObjectFactory，可以理解为创建单例 bean 的 factory 。
+	 *
+	 * 三级缓存，存放的是 ObjectFactory，可以理解为创建早期半成品（未初始化完）的 bean 的 factory ，最终添加到二级缓存 {@link #earlySingletonObjects} 中
+	 *
 	 * 对应关系是 bean name --> ObjectFactory
-	 * */
+	 *
+	 * 这个 Map 也是【循环依赖】的关键所在。
+	 */
 	private final Map<String, ObjectFactory<?>> singletonFactories = new HashMap<>(16);
 
 	/**
 	 * Cache of early singleton objects: bean name to bean instance.
-	 * 早期单例对象的缓存:bean的名称得到bean实例。
-	 * 存放的是早期的 bean，对应关系也是 bean name --> bean instance。
-	 * 它与 {@link #singletonFactories} 区别在于 earlySingletonObjects 中存放的 bean 不一定是完整。
-	 * 从 {@link #getSingleton(String)} 方法中，我们可以了解，bean 在创建过程中就已经加入到 earlySingletonObjects 中了。
-	 * 所以当在 bean 的创建过程中，就可以通过 getBean() 方法获取。
+	 *
+	 * 二级缓存，存放的是早期半成品（未初始化完）的 bean，对应关系也是 bean name --> bean instance。
+	 *
+	 * 它与 {@link #singletonObjects} 区别在于， 它自己存放的 bean 不一定是完整。
+	 *
 	 * 这个 Map 也是【循环依赖】的关键所在。
-	 * */
+	 */
 	private final Map<String, Object> earlySingletonObjects = new ConcurrentHashMap<>(16);
 
 	/** Set of registered singletons, containing the bean names in registration order. */
@@ -149,6 +158,9 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	 * @param singletonObject the singleton object
 	 */
 	protected void addSingleton(String beanName, Object singletonObject) {
+		/*
+		 * <XXX> 这里才是正在的实例化bean对象，实例化成功后放入一级缓存singletonObjects，同时删除二级缓存、三级缓存中保持的半成品
+		 * */
 		synchronized (this.singletonObjects) {
 			this.singletonObjects.put(beanName, singletonObject);
 			this.singletonFactories.remove(beanName);

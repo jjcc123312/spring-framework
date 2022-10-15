@@ -311,7 +311,13 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 				// Create bean instance.
 				// <8> bean 实例化
+				/*
+				* <XXX> 这里才是正在的实例化bean对象，实例化成功后放入一级缓存singleton
+				* */
 				if (mbd.isSingleton()) { // 单例模式
+					/*
+					 * <XXX> 这里才是正在的实例化bean对象，实例化成功后放入一级缓存singletonObjects，同时删除二级缓存、三级缓存中保持的半成品
+					 * */
 					sharedInstance = getSingleton(beanName, () -> {
 						try {
 							// 创建bean实例
