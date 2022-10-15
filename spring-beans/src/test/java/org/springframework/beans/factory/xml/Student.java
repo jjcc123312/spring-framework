@@ -1,5 +1,8 @@
 package org.springframework.beans.factory.xml;
 
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.config.BeanPostProcessor;
+
 /**
  * @author Leo
  * @version 1.0
@@ -7,7 +10,7 @@ package org.springframework.beans.factory.xml;
  * @description TODO
  * @date 2022/10/11 14:04
  **/
-public class Student implements Person {
+public class Student implements BeanPostProcessor {
 
 	private String name;
 
@@ -35,7 +38,14 @@ public class Student implements Person {
 	}
 
 	@Override
-	public String introduce() {
-		return "我叫" + name + "，今年" + age + "岁";
+	public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
+		System.out.println("Bean [" + beanName + "] 开始初始化");
+		return BeanPostProcessor.super.postProcessBeforeInitialization(bean, beanName);
+	}
+
+	@Override
+	public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
+		System.out.println("Bean [" + beanName + "] 完成初始化");
+		return BeanPostProcessor.super.postProcessAfterInitialization(bean, beanName);
 	}
 }

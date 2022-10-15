@@ -221,8 +221,8 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			// <2> 完成 FactoryBean 的相关处理，并用来获取 FactoryBean 的处理结果
 			/*
 			 * 缓存中记录的是最原始的 Bean 状态，我们得到的不一定是我们最终想要的 Bean，所以需要进行重新实例化
-			 * getSingleton()方法中：如果单例缓冲集合不存在会返回一个null（earlySingletonObjects、singletonObjects从这两个集合中去找对应的bean实例）
 			 * sharedInstance如果是FactoryBean类型，则需要创建bean实例，如果不是则直接return
+			 * 返回的可能是三级缓存singletonFactories中存储的用于提前曝光的singletonFactory，这是一个FactoryBean类型，需要调用#getObject()方法得到bean实例
 			* */
 			bean = getObjectForBeanInstance(sharedInstance, name, beanName, null);
 		}

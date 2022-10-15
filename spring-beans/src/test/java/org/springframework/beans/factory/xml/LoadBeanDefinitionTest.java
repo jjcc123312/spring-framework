@@ -20,6 +20,7 @@ public class LoadBeanDefinitionTest {
 		XmlBeanDefinitionReader xmlBeanDefinitionReader = new XmlBeanDefinitionReader(defaultListableBeanFactory);
 
 		xmlBeanDefinitionReader.loadBeanDefinitions(classPathResource);
+		defaultListableBeanFactory.addBeanPostProcessor(new Student("", 1));
 		Object bean1 = defaultListableBeanFactory.getBean("studentBean");
 //		Object bean = defaultListableBeanFactory.getBean("&testFactory122");
 		Student studentBean1 = (Student) bean1;

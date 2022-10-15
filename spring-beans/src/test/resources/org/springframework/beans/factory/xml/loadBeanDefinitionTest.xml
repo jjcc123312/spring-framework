@@ -7,7 +7,7 @@
 <!--		<constructor-arg name="original" value="test_bean"/>-->
 <!--	</bean>-->
 
-	<bean id="studentBean" class="org.springframework.beans.factory.xml.Student">
+	<bean id="studentBean" class="org.springframework.beans.factory.xml.Student" >
 		<constructor-arg name="name" value="jjcc"/>
 		<constructor-arg name="age" value="25"/>
 	</bean>
